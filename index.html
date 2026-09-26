@@ -59,16 +59,24 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,san
 .chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
 @media(max-width:680px){.chart-grid{grid-template-columns:1fr}}
 .tbl-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
-table{width:100%;border-collapse:collapse;font-size:11px}
-th{background:var(--surface2);color:var(--muted);font-weight:700;padding:9px 11px;text-align:right;white-space:nowrap;font-size:10px;letter-spacing:.3px}
-th:first-child{text-align:left}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:11px}
+th{background:var(--surface2);color:var(--muted);font-weight:700;padding:9px 11px;text-align:right;white-space:nowrap;font-size:10px;letter-spacing:.3px;border-bottom:1px solid var(--border)}
+th:first-child{text-align:left;position:sticky;left:0;z-index:3;background:var(--surface2);box-shadow:2px 0 6px rgba(0,0,0,.3)}
 td{padding:8px 11px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
-td:first-child{text-align:left;font-weight:600}
-tr:last-child td{border-bottom:none}
+td:first-child{text-align:left;font-weight:600;position:sticky;left:0;z-index:2;background:var(--surface);box-shadow:2px 0 6px rgba(0,0,0,.25)}
 tr:hover td{background:var(--surface2)}
+tr:hover td:first-child{background:var(--surface2)}
+tr:last-child td{border-bottom:none}
 .pos{color:var(--green)}.neg{color:var(--ds)}.neu{color:var(--muted)}
 .alert{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--amber);margin-bottom:20px;line-height:1.6}
 .upd{font-size:10px;color:var(--muted);text-align:right;margin-top:20px;padding-top:12px;border-top:1px solid var(--border)}
+/* ── Filtro de período ── */
+.filter-bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.filter-label{font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap}
+.filter-btn{padding:6px 14px;border-radius:99px;border:1px solid var(--border);background:var(--surface);color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;transition:.2s;white-space:nowrap}
+.filter-btn:hover{border-color:var(--text);color:var(--text)}
+.filter-btn.active.ds-active{background:rgba(229,62,62,.15);border-color:var(--ds);color:var(--ds)}
+.filter-btn.active.wh-active{background:rgba(34,197,94,.15);border-color:var(--wish);color:var(--wish)}
 </style>
 </head>
 <body>
@@ -179,6 +187,14 @@ tr:hover td{background:var(--surface2)}
 
     <div class="section">
       <div class="section-title">Tabela Completa</div>
+      <div class="filter-bar">
+        <span class="filter-label">Período:</span>
+        <button class="filter-btn ds-active active" onclick="filterTable('ds','all',this)">Todos</button>
+        <button class="filter-btn ds-active" onclick="filterTable('ds','6m',this)">Últimos 6 meses</button>
+        <button class="filter-btn ds-active" onclick="filterTable('ds','3m',this)">Último trimestre</button>
+        <button class="filter-btn ds-active" onclick="filterTable('ds','2025',this)">2025</button>
+        <button class="filter-btn ds-active" onclick="filterTable('ds','2026',this)">2026</button>
+      </div>
       <div class="tbl-wrap"><table id="dsTable"></table></div>
     </div>
     <div class="upd">Atualizado em Setembro/2026 · Darkside Entretenimento · Gerência de Operações, Logística e Supply</div>
@@ -236,6 +252,12 @@ tr:hover td{background:var(--surface2)}
 
     <div class="section">
       <div class="section-title">Tabela Completa</div>
+      <div class="filter-bar">
+        <span class="filter-label">Período:</span>
+        <button class="filter-btn wh-active active" onclick="filterTable('wh','all',this)">Todos</button>
+        <button class="filter-btn wh-active" onclick="filterTable('wh','3m',this)">Último trimestre</button>
+        <button class="filter-btn wh-active" onclick="filterTable('wh','2026',this)">2026</button>
+      </div>
       <div class="tbl-wrap"><table id="whTable"></table></div>
     </div>
     <div class="upd">Atualizado em Setembro/2026 · Darkside Entretenimento · Gerência de Operações, Logística e Supply</div>
@@ -481,6 +503,45 @@ function initCharts(){
     ]},options:lineOpts('R$/Peça')});
 
   buildTable('whTable',WH);
+}
+
+// ── Filtro de período ─────────────────────────────────────────────
+function filterTable(op, period, btn) {
+  // Atualizar botão ativo
+  const bar = btn.closest('.filter-bar');
+  bar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const data = op === 'ds' ? DS : WH;
+  const labels = data.labels;
+  const n = labels.length;
+
+  // Determinar colunas visíveis
+  let visibleIdx = [];
+  if (period === 'all') {
+    visibleIdx = labels.map((_,i) => i);
+  } else if (period === '6m') {
+    visibleIdx = labels.map((_,i) => i).slice(-6);
+  } else if (period === '3m') {
+    visibleIdx = labels.map((_,i) => i).slice(-3);
+  } else if (period === '2025') {
+    visibleIdx = labels.map((l,i) => l.includes('25') ? i : -1).filter(i => i >= 0);
+  } else if (period === '2026') {
+    visibleIdx = labels.map((l,i) => l.includes('26') ? i : -1).filter(i => i >= 0);
+  }
+
+  const tbl = document.getElementById(op + 'Table');
+  // Filtrar colunas: col 0 = indicador (sempre visível), col 1..n = meses
+  const allCols = tbl.querySelectorAll('th, td');
+  const rows = tbl.querySelectorAll('tr');
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('th, td');
+    cells.forEach((cell, idx) => {
+      if (idx === 0) { cell.style.display = ''; return; }
+      // idx 1 = mês 0, idx 2 = mês 1, etc.
+      cell.style.display = visibleIdx.includes(idx - 1) ? '' : 'none';
+    });
+  });
 }
 </script>
 </body>
