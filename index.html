@@ -67,7 +67,7 @@ td:first-child{text-align:left;font-weight:600;position:sticky;left:0;z-index:2;
 tr:hover td{background:var(--surface2)}
 tr:hover td:first-child{background:var(--surface2)}
 tr:last-child td{border-bottom:none}
-.pos{color:var(--green)}.neg{color:var(--ds)}.neu{color:var(--muted)}
+.pos{color:var(--green)}.neg{color:var(--ds)}.neu{color:var(--muted)}.warn{color:var(--amber)}
 .alert{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px 16px;font-size:12px;color:var(--amber);margin-bottom:20px;line-height:1.6}
 .upd{font-size:10px;color:var(--muted);text-align:right;margin-top:20px;padding-top:12px;border-top:1px solid var(--border)}
 /* ── Filtro de período ── */
@@ -301,6 +301,7 @@ const DS={
   b2b_cx_peca:[0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.33,0.35,0.35,0.35,0.35,0.35],b2b_fr_peca:[0.97,0.97,0.97,0.97,0.97,0.97,0.97,0.97,0.97,0.97,0.97,0.97,1.01,1.01,1.01,1.01,1.01],
   b2c_avg_peca:[2.06,1.58,1.46,1.38,1.41,1.6,1.4,1.27,1.4,1.51,1.57,1.48,1.49,1.55,1.48,1.44,1.55],
   exp_pecas:[32051,69231,78477,46866,105856,97832,87531,157631,137729,34493,88653,67086,70386,55197,64881,65799,60672],rec_pecas:[524045,272010,213875,160921,221949,115605,96744,134414,288264,95799,61908,111809,135109,106309,88163,67100,37769],estoque_ex:[1543402,1659880,1677226,1702212,1873505,1854648,1764106,1670348,1740983,1780447,1706996,1734569,1729692,1728280,1634618,1574042,1450406],
+  vencimento:["05/05/2025","05/06/2025","25/07/2025","25/08/2025","25/09/2025","30/10/2025","28/11/2025","26/12/2025","26/01/2026","02/03/2026","05/04/2026","27/04/2026","27/05/2026","29/06/2026","25/07/2026","04/09/2026","05/10/2026"],
 };
 const WH={
   labels:["Mar/26","Abr/26","Mai/26","Jun/26","Jul/26","Ago/26"],totals:[4313.35,3817.66,593.26,502.13,16873.28,6802.15],p1:[3011.66,2679.32,32.82,0.0,13883.92,5223.44],p2:[753.06,645.48,430.32,430.32,1075.8,753.06],
@@ -309,6 +310,7 @@ const WH={
   b2c_2_avg:[4.17,4.17,4.17,null,4.17,4.17],b2c_3_avg:[5.73,5.73,5.73,null,5.73,5.73],
   b2c_avg_peca:[1.86,1.9,1.93,null,1.91,1.88],
   exp_pecas:[1973,2338,27,0,1483,2730],rec_pecas:[4985,0,0,0,4655,625],estoque_ex:[2271,699,682,682,3740,1738],
+  vencimento:["27/04/2026","27/05/2026","29/06/2026","25/07/2026","25/08/2026","05/10/2026"],
 };
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -337,7 +339,7 @@ function lineOpts(yLabel,ttFn){
 
 function buildTable(id,data){
   const tbl=document.getElementById(id);
-  const rows=[['Total Geral','totals'],['P1 Movimentações','p1'],['P2 Estacionamento','p2'],
+  const rows=[['Vencimento','vencimento'],['Total Geral','totals'],['P1 Movimentações','p1'],['P2 Estacionamento','p2'],
               ['Seguro','seguro'],['Impostos','impostos'],['Var. M/M','mom']];
   if(data.pallets)rows.push(['Pallets (posições)','pallets']);
   if(data.exp_pecas)rows.push(['Peças Expedidas','exp_pecas']);
@@ -351,6 +353,18 @@ function buildTable(id,data){
     (data[key]||[]).forEach((v,i)=>{
       if(key==='mom'){const cls=v==null?'neu':v>0?'neg':'pos';h+=`<td class="${cls}">${Pct(v)}</td>`;}
       else if(key==='pallets'||key==='exp_pecas'||key==='rec_pecas'||key==='estoque_ex'){h+=`<td>${N(v)}</td>`;}
+      else if(key==='vencimento'){
+        // Destacar vencimento: vermelho se vencido, âmbar se próximo (<=7 dias), verde se futuro
+        let cls='neu';
+        if(v&&v!=='-'){
+          const parts=v.split('/');
+          const dt=new Date(parts[2],parts[1]-1,parts[0]);
+          const today=new Date(); today.setHours(0,0,0,0);
+          const diff=Math.ceil((dt-today)/(1000*60*60*24));
+          cls=diff<0?'neg':diff<=7?'warn':'pos';
+        }
+        h+=`<td class="${cls}" style="font-weight:600">${v||'-'}</td>`;
+      }
       else{let cls='';if(key==='totals'&&i>0){const d=v-(data[key][i-1]||0);cls=d>0?'neg':'pos';}h+=`<td class="${cls}">${R(v)}</td>`;}
     });
     h+='</tr>';
